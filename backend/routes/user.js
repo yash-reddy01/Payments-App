@@ -1,9 +1,10 @@
 const express = require("express");
 const userRouter = express.Router();
-import { User } from "../db";
-import { signIn, signUp } from "../types";
+import { Account, User } from "../db";
+import { signIn, signUp, update } from "../types";
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../config");
+const { authMiddleware } = require("../middleware");
 
 
 userRouter.post("/signup", async (req, res) => {
@@ -33,6 +34,11 @@ userRouter.post("/signup", async (req, res) => {
     })
 
     const userId = user._id;
+
+    await Account.create({
+        userId,
+        balance: 1 + Math.random() * 10000
+    });
 
     const token = jwt.sign(userId, JWT_SECRET);
 
@@ -65,6 +71,46 @@ userRouter.post("/signin", async (req, res) => {
         token: token
     })
 });
+
+userRouter.put("/", authMiddleware, async (res, req) => {
+   const { success } = update.safeParse(req.body);
+   if(!success) {
+    return res.status(411).json({
+        message: "Error while updating information"
+    });
+   }
+
+   await User.updateOne({_id: req.userId}, req.body);
+
+   return res.status(200).json({
+        message: "Updated successfully"
+   })
+});
+
+userRouter.get("/bulk", async (req, res) => {
+    const filter = req.body.filter;
+
+    const users = await User.find({
+        $or: [{
+            firstName: {
+                "$regex": filter
+            },
+        }, {
+            lastName: {
+                "$regex": filter
+            }
+        }]
+    })
+
+    res.status(200).json({
+        user: users.map((user) => ({
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            _id: user._id
+        }))
+    })
+})
 
 
 module.exports = userRouter;
