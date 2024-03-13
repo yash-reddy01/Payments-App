@@ -2,9 +2,8 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 
 mongoose.connect(process.env.MONGO_URL);
-console.log("success");
 
-const userSchema = new mongoose.Schema({
+const userSchema = mongoose.Schema({
     username: {
         type: String,
         required: true,
@@ -46,10 +45,9 @@ const accountSchema = mongoose.Schema({
 });
 
 const Account = mongoose.model('Account', accountSchema);
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model('User', userSchema)
 
 module.exports = {
-    User: User,
-    Account: Account
+    User, Account
 }
 

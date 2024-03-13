@@ -5,22 +5,17 @@ const authMiddleware = (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if(!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(403).json({});
+        return res.status(403).json({message: "Error1"});
     }
 
     const token = authHeader.split(' ')[1];
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
+        req.userId = decoded.userId;
 
-        if(decoded.userId) {
-            req.userId = decoded.userId;
-            next();
-        } else {
-            return res.status(403).json({});
-        }
-        
-    } catch(err) {
+        next();
+    } catch (err) {
         return res.status(403).json({});
     }
 };

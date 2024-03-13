@@ -1,7 +1,7 @@
 const express = require("express");
 const userRouter = express.Router();
-import { Account, User } from "../db";
-import { signIn, signUp, update } from "../types";
+const { Account, User } =  require("../db");
+const { signIn, signUp, update } = require("../types");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET } = require("../config");
 const { authMiddleware } = require("../middleware");
@@ -9,14 +9,15 @@ const { authMiddleware } = require("../middleware");
 
 userRouter.post("/signup", async (req, res) => {
     const userData = req.body;
-    const parsedUserData = signUp.safeParse(userData);
-    if(!parsedUserData.success) {
+    const { success } = signUp.safeParse(userData);
+    console.log(success);
+    if(!success) {
         return res.status(411).json({
             message: "Email already taken / Incorrect inputs"
         });
     }
-    
-    const existingUser = User.findOne({
+
+    const existingUser = await User.findOne({
         username: userData.username
     })
 
@@ -27,10 +28,10 @@ userRouter.post("/signup", async (req, res) => {
     }
 
     const user = await User.create({
-        username: parsedUserData.username,
-        password: parsedUserData.password,
-        firstName: parsedUserData.firstName,
-        lastName: parsedUserData.lastName
+        username: req.body.username,
+        password: req.body.password,
+        firstName: req.body.firstName,
+        lastName: req.body.lastName
     })
 
     const userId = user._id;
@@ -40,7 +41,9 @@ userRouter.post("/signup", async (req, res) => {
         balance: 1 + Math.random() * 10000
     });
 
-    const token = jwt.sign(userId, JWT_SECRET);
+    const token = jwt.sign({
+        userId
+    }, JWT_SECRET);
 
     res.status(200).json({
         message: "User created successfully",
@@ -56,39 +59,45 @@ userRouter.post("/signin", async (req, res) => {
             message: "Incorrect Inputs"
         })
     }
-    const isUserExist = await User.find({
+    const isUserExist = await User.findOne({
         username: body.username,
         password: body.password
     })
+
+    console.log(isUserExist);
     if(!isUserExist) {
         return res.status(411).json({
             message: "Error while logging in"
         })
     }
 
-    const token = jwt.sign(isUserExist._id, JWT_SECRET);
+    const userId = isUserExist._id;
+
+    const token = jwt.sign({userId}, JWT_SECRET);
     return res.status(200).json({
         token: token
     })
 });
 
-userRouter.put("/", authMiddleware, async (res, req) => {
-   const { success } = update.safeParse(req.body);
-   if(!success) {
-    return res.status(411).json({
-        message: "Error while updating information"
-    });
-   }
+userRouter.put("/", authMiddleware, async (req, res) => {
+    const { success } = update.safeParse(req.body)
+    if (!success) {
+        res.status(411).json({
+            message: "Error while updating information"
+        })
+    }
 
-   await User.updateOne({_id: req.userId}, req.body);
+    await User.updateOne({
+        _id: req.userId
+    }, req.body);
 
-   return res.status(200).json({
+    res.json({
         message: "Updated successfully"
-   })
-});
+    })
+})
 
 userRouter.get("/bulk", async (req, res) => {
-    const filter = req.body.filter;
+    const filter = req.query.filter || "";
 
     const users = await User.find({
         $or: [{
